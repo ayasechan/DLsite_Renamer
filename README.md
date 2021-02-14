@@ -15,7 +15,6 @@ Rename the DLsite works and download the cover If required.
 2. Install pip
 ```
 pip install lxml
-pip install tkintertable
 pip install requests
 ```
 

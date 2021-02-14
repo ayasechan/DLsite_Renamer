@@ -1,23 +1,22 @@
-from tkinter import filedialog
-from tkinter import messagebox
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from lxml import html
 from glob import glob
-import tkinter as tk
-import threading
 import requests
 import time
 import re
 import os
 import json
 import random
-import sys
 import argparse
 import urllib.request
+from pathlib import Path
 
 # 默認設定
-template_RJ = 'workno title '  # 默認RJ命名模板(Voice)
-template_BJ = 'workno title '  # 默認BJ命名模板(Comic)
-template_VJ = 'workno title '  # 默認VJ命名模板(Game)
+template_RJ = '[workno] title '  # 默認RJ命名模板(Voice)
+template_BJ = '[workno] title '  # 默認BJ命名模板(Comic)
+template_VJ = '[workno] title '  # 默認VJ命名模板(Game)
 
 replace_rules = []  # 替換規則
 
@@ -31,9 +30,9 @@ R_COOKIE = {'adultchecked': '1'}
 
 # re.compile()返回一個匹配對像
 # ensure path name is exactly RJ\d\d\d\d\d\d or BJ\d\d\d\d\d\d or VJ\d\d\d\d\d\d
-pattern = re.compile("[BRV][EJ]\d{6}|$")
+pattern = re.compile(r'(rj|bj|vj)?(\d{6})', re.I)
 # filter to substitute illegal filenanme characters to " "
-filter = re.compile('[\\\/:"*?<>|]+')
+filter = re.compile('[\\\/:"*?<>|]+', re.I)
 
 
 # 避免ERROR: Max retries exceeded with url
@@ -177,7 +176,11 @@ def nameChange(path, del_flag, cover_flag, recur_flag):
                 if recur_flag: # 遞迴檢索需要修正路徑
                     path = os.path.split(file)[0]
                 # 嘗試獲取code
-                code = re.findall(pattern, file.upper())[0]
+                category, code = re.findall(pattern, file)[0]
+                # 设置默认类别为 rj
+                if not category:
+                    category = 'rj'
+                code = f'{category}{code}'.upper()
                 # 如果沒能提取到code
                 if not code:
                     continue  # 跳過該資料夾/檔案
@@ -239,7 +242,7 @@ def nameChange(path, del_flag, cover_flag, recur_flag):
                           
                         # 1. 將Windows文件名中的非法字元替換成全形
                         # re.match(pattern, string, flags=0)
-                        fixed_filename = "";
+                        fixed_filename = ""
                         for char in new_name:
                             if re.match(filter, char):
                                 fixed_filename += strB2Q(char)
@@ -297,10 +300,12 @@ args = process_command()
 print("===讀取配置文件===\n\n")
 # 讀取配置文件
 # os.path.dirname(__file__) 當前腳本所在路徑
-basedir = os.path.abspath(os.path.dirname(__file__))
+basedir = Path(__file__).resolve().parent
 try:
-    fname = os.path.join(basedir, 'config.json')
-    with open(fname, 'r', encoding='utf-8') as f:
+    config_file = basedir / 'config.json'
+
+    print(f'READ {config_file}')
+    with open(config_file, 'r', encoding='utf-8') as f:
         config = json.load(f)
         for tag in config['replace_rules']:  # 模板非空
             if ("workno" in tag['to']):
@@ -332,23 +337,29 @@ except os.error as err:
             {
                 "type": "rj",
                 "from": "",
-                "to": "workno title "
+                "to": "[workno] title "
             },
             {
                 "type": "bj",
                 "from": "",
-                "to": "workno title "
+                "to": "[workno] title "
             },
             {
                 "type": "vj",
                 "from": "",
-                "to": "workno title "
+                "to": "[workno] title "
             }
         ]
     }
-    with open(fname, "w", encoding='utf-8') as f:
+    with open(config_file, "w", encoding='utf-8') as f:
         json.dump(json_data, f, ensure_ascii=False, sort_keys=False,indent=4)
         print("**使用默認命名模板:\n")
         print("  workno title \n")
 
-nameChange(args.PATH,args.DEL,args.COVER,args.RECUR)
+
+
+def main():
+    nameChange(args.PATH,args.DEL,args.COVER,args.RECUR)
+
+if __name__ == '__main__':
+    main()
